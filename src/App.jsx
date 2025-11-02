@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from './firebase/config';
+import { getUserId } from './utils/userId';
+import { getCategoryId, CATEGORIES } from './utils/categories';
+import { calculateDistance } from './utils/clustering';
 import TileGrid from './components/TileGrid';
 import MapSection from './components/MapSection';
 
@@ -192,11 +195,90 @@ function App() {
       return;
     }
 
+    // Get selected category IDs
+    const selectedCategoryIds = Object.keys(selectedTiles)
+      .filter(tileId => selectedTiles[tileId])
+      .map(tileId => getCategoryId(tileId));
+
+    if (selectedCategoryIds.length === 0) {
+      alert('Please select at least one category before submitting.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      const userId = getUserId();
+      
+      // Check for existing submissions from this user for any of the selected categories
+      // Only block if same category AND same location (within 100m)
+      const submissionsRef = collection(db, 'submissions');
+      const q = query(submissionsRef, where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      
+      // Store existing submissions with their categories and locations
+      const existingSubmissions = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.location && data.selectedTiles) {
+          const submissionCategories = [];
+          Object.keys(data.selectedTiles).forEach(tileId => {
+            if (data.selectedTiles[tileId]) {
+              submissionCategories.push(getCategoryId(tileId));
+            }
+          });
+          existingSubmissions.push({
+            categories: submissionCategories,
+            location: data.location
+          });
+        }
+      });
+
+      // Find categories that user has already submitted at locations within 100m
+      const duplicateCategories = [];
+      selectedCategoryIds.forEach(categoryId => {
+        // Check if this category was submitted at any location within 100m
+        const hasDuplicate = existingSubmissions.some(sub => {
+          if (sub.categories.includes(categoryId)) {
+            // Check if location is within 100m (0.1 km)
+            const distance = calculateDistance(
+              location.lat,
+              location.lon,
+              sub.location.lat,
+              sub.location.lon
+            );
+            return distance <= 0.1; // 100m threshold
+          }
+          return false;
+        });
+        
+        if (hasDuplicate) {
+          duplicateCategories.push(categoryId);
+        }
+      });
+
+      if (duplicateCategories.length > 0) {
+        setIsSubmitting(false);
+        const categoryLabels = duplicateCategories.map(catId => {
+          // Find the tile that corresponds to this category
+          for (const tileId in selectedTiles) {
+            if (selectedTiles[tileId] && getCategoryId(tileId) === catId) {
+              return mode === 'Complaint' 
+                ? CATEGORIES[tileId].complaint
+                : CATEGORIES[tileId].compliment;
+            }
+          }
+          return catId;
+        }).join(', ');
+        
+        alert(`You have already submitted a report for the following ${duplicateCategories.length > 1 ? 'categories' : 'category'}: ${categoryLabels}\n\nPlease select different categories or wait before submitting again for the same category.`);
+        return;
+      }
+
+      // Proceed with submission
       const dataToStore = {
         mode: mode,
+        userId: userId, // Add user ID to track submissions
         location: {
           lat: location.lat,
           lon: location.lon
