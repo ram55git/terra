@@ -3,48 +3,48 @@
 
 export const CATEGORIES = {
   tile1: {
-    complaint: 'Pothole Roads',
-    compliment: 'Improved Roads',
+    complaint: 'Pothole or Damaged Roads',
+    compliment: 'Smooth, Well-Maintained Roads',
     categoryId: 'roads'
   },
   tile2: {
-    complaint: 'Garbage piled up',
-    compliment: 'Garbage Cleared',
+    complaint: 'Garbage Piled Up or Overflowing Bins',
+    compliment: 'Clean Streets and Emptied Bins',
     categoryId: 'garbage'
   },
   tile3: {
-    complaint: 'Footpath blocked',
-    compliment: 'Footpath Cleared',
+    complaint: 'Blocked or Damaged Footpaths',
+    compliment: 'Clear, Safe Footpaths for Walking',
     categoryId: 'footpath'
   },
   tile4: {
-    complaint: 'Sewage leaking/Open drains',
-    compliment: 'Sewage fixed',
+    complaint: 'Leaking Sewage or Open Drains',
+    compliment: 'Secure and Functional Drainage',
     categoryId: 'sewage'
   },
   tile5: {
-    complaint: 'No Drinking water',
-    compliment: 'Drinking water available',
+    complaint: 'No Access to Clean Drinking Water',
+    compliment: 'Reliable Public Water Supply',
     categoryId: 'water'
   },
   tile6: {
-    complaint: 'Air pollution',
-    compliment: 'Reduced Air pollution',
+    complaint: 'High Air Pollution Levels',
+    compliment: 'Fresh, Breathable Air Quality',
     categoryId: 'air_quality'
   },
   tile7: {
-    complaint: 'No Street lights',
-    compliment: 'Street well lit',
+    complaint: 'Broken or No Street Lights',
+    compliment: 'Bright, Safe Street Lighting',
     categoryId: 'street_lights'
   },
   tile8: {
-    complaint: 'Illegal Parking/Encroachment',
-    compliment: 'Illegal Parking/Encroachment cleared',
+    complaint: 'Illegal Parking or Encroachment',
+    compliment: 'Clear Public Spaces, No Encroachments',
     categoryId: 'parking'
   },
   tile9: {
-    complaint: 'Health Hazard (mosquito breeding)',
-    compliment: 'No Health Hazard',
+    complaint: 'Health Hazards (e.g., Mosquito Breeding or Stagnant Water)',
+    compliment: 'Safe, Hazard-Free Environment',
     categoryId: 'health'
   }
 };
