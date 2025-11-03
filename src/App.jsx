@@ -9,6 +9,7 @@ import TileGrid from './components/TileGrid';
 import MapSection from './components/MapSection';
 import InfoDialog from './components/InfoDialog';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import ThemeToggle from './components/ThemeToggle';
 
 function App() {
   const { t } = useTranslation();
@@ -308,19 +309,20 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-950">
       <div className="container mx-auto px-4 py-8 max-w-6xl relative">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">{t('app.title')}</h1>
-          
-          {/* Language Switcher */}
-          <div className="flex justify-center mb-4">
+          <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-4">{t('app.title')}</h1>
+
+          {/* Toolbar: Language + Theme */}
+          <div className="flex items-center justify-center gap-3 mb-4">
             <LanguageSwitcher />
+            <ThemeToggle />
           </div>
           
           {/* Toggle Button */}
-          <div className="inline-flex rounded-lg bg-white shadow-md p-1 mb-6">
+          <div className="inline-flex rounded-lg bg-white dark:bg-gray-800 shadow-md p-1 mb-6">
             <button
               onClick={() => {
                 setMode('Complaint');
@@ -329,7 +331,7 @@ function App() {
               className={`px-6 py-2 rounded-md font-semibold transition-all ${
                 mode === 'Complaint'
                   ? 'bg-red-500 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-800'
+                  : 'text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100'
               }`}
             >
               {t('app.complaint')}
@@ -342,7 +344,7 @@ function App() {
               className={`px-6 py-2 rounded-md font-semibold transition-all ${
                 mode === 'Compliment'
                   ? 'bg-green-500 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-800'
+                  : 'text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100'
               }`}
             >
               {t('app.compliment')}
@@ -355,10 +357,10 @@ function App() {
           <button
             onClick={() => setIsInfoOpen(true)}
             aria-label="Show information about this site"
-            className="bg-white rounded-full p-2 shadow hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className="bg-white dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full p-2 shadow hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
           >
             {/* Info SVG */}
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600 dark:text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20.5A8.5 8.5 0 1 1 20.5 12 8.509 8.509 0 0 1 12 20.5z" />
             </svg>
           </button>
@@ -366,13 +368,13 @@ function App() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Input Section */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 border border-transparent dark:border-gray-700">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-4">
               {mode === 'Complaint' ? t('app.reportComplaint') : t('app.giveCompliment')}
             </h2>
             
             <div className="mt-6">
-              <h3 className="text-lg font-medium text-gray-700 mb-3">
+              <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
                 {mode === 'Complaint' ? t('app.selectIssues') : t('app.selectCategories')} {t('app.clickTiles')}
               </h3>
               <TileGrid 
@@ -398,13 +400,13 @@ function App() {
           </div>
 
           {/* Map Section */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 border border-transparent dark:border-gray-700">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-4">
               {t('app.location')}
             </h2>
             {locationError && (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800 mb-3 whitespace-pre-line">{locationError}</p>
+              <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-3 whitespace-pre-line">{locationError}</p>
                 <button
                   onClick={getLocation}
                   className="text-sm bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md transition-colors"
@@ -414,8 +416,8 @@ function App() {
               </div>
             )}
             {isLoadingLocation && !locationError && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">{t('errors.requestingLocation')}</p>
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200">{t('errors.requestingLocation')}</p>
               </div>
             )}
             <MapSection 
