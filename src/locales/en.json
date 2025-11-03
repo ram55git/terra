@@ -1,0 +1,66 @@
+{
+  "app": {
+    "title": "Terra",
+    "complaint": "Complaint",
+    "compliment": "Compliment",
+    "reportComplaint": "Report a Complaint",
+    "giveCompliment": "Give a Compliment",
+    "selectIssues": "Select Issues",
+    "selectCategories": "Select Categories",
+    "clickTiles": "(Click tiles to select/deselect):",
+    "submit": "Submit",
+    "submitting": "Submitting...",
+    "location": "Location",
+    "retryLocation": "Retry Location Access"
+  },
+  "errors": {
+    "locationNotSupported": "Geolocation is not supported by your browser.",
+    "locationDenied": "Location access was denied. Please allow location access in your browser settings.",
+    "locationUnavailable": "Location services are unavailable.",
+    "locationTimeout": "Location request timed out.",
+    "requestingLocation": "Requesting location access...",
+    "retryLocation": "Please click 'Retry Location Access' button to try again.",
+    "selectAtLeastOne": "Please select at least one category before submitting.",
+    "locationNotAvailable": "Location not available. Please enable location access in your browser and try again.",
+    "permissionDenied": "Permission denied. Please update your Firestore security rules to allow writes to the \"submissions\" collection.\\n\\nGo to Firebase Console > Firestore Database > Rules and allow writes.",
+    "submitError": "Error submitting data. Please try again.",
+    "alreadySubmitted": "You have already submitted a report for the following",
+    "alreadySubmittedSuffix": "Please select different categories or wait before submitting again for the same category."
+  },
+  "success": {
+    "dataSubmitted": "Data submitted successfully!"
+  },
+  "info": {
+    "title": "About Terra",
+    "description1": "Terra lets users report complaints or give compliments anonymously about civic issues. Select the tiles and submit your report. You can view the reports from other users on the map by clicking on the markers.",
+    "description2": "Location data is used to place reports on the map but no personally-identifiable information is collected other than a generated user id stored locally to prevent duplicate submissions.",
+    "description3": "Data older than 90 days is automatically deleted from our servers to keep the information current and relevant.",
+    "close": "Close"
+  },
+  "categories": {
+    "tile1_complaint": "Pothole or Damaged Roads",
+    "tile1_compliment": "Smooth, Well-Maintained Roads",
+    "tile2_complaint": "Garbage Piled Up or Overflowing Bins",
+    "tile2_compliment": "Clean Streets and Emptied Bins",
+    "tile3_complaint": "Blocked or Damaged Footpaths",
+    "tile3_compliment": "Clear, Safe Footpaths for Walking",
+    "tile4_complaint": "Leaking Sewage or Open Drains",
+    "tile4_compliment": "Secure and Functional Drainage",
+    "tile5_complaint": "No Access to Clean Drinking Water",
+    "tile5_compliment": "Reliable Public Water Supply",
+    "tile6_complaint": "High Air Pollution Levels",
+    "tile6_compliment": "Fresh, Breathable Air Quality",
+    "tile7_complaint": "Broken or No Street Lights",
+    "tile7_compliment": "Bright, Safe Street Lighting",
+    "tile8_complaint": "Illegal Parking or Encroachment",
+    "tile8_compliment": "Clear Public Spaces, No Encroachments",
+    "tile9_complaint": "Health Hazards (e.g., Mosquito Breeding or Stagnant Water)",
+    "tile9_compliment": "Safe, Hazard-Free Environment",
+    "tile10_complaint": "Water Logging or Flooding After Rains",
+    "tile10_compliment": "Quick Drain Clearance, No Floods",
+    "tile11_complaint": "Traffic Congestion or Broken Signals",
+    "tile11_compliment": "Smooth Traffic Flow",
+    "tile12_complaint": "Noise Pollution (e.g., Loudspeakers or Horns)",
+    "tile12_compliment": "Peaceful Environment"
+  }
+}

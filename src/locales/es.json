@@ -1,0 +1,66 @@
+{
+  "app": {
+    "title": "Terra",
+    "complaint": "Queja",
+    "compliment": "Elogio",
+    "reportComplaint": "Reportar una Queja",
+    "giveCompliment": "Dar un Elogio",
+    "selectIssues": "Seleccionar Problemas",
+    "selectCategories": "Seleccionar Categorías",
+    "clickTiles": "(Haz clic en las casillas para seleccionar/deseleccionar):",
+    "submit": "Enviar",
+    "submitting": "Enviando...",
+    "location": "Ubicación",
+    "retryLocation": "Reintentar Acceso a Ubicación"
+  },
+  "errors": {
+    "locationNotSupported": "La geolocalización no es compatible con su navegador.",
+    "locationDenied": "Se negó el acceso a la ubicación. Permita el acceso a la ubicación en la configuración de su navegador.",
+    "locationUnavailable": "Los servicios de ubicación no están disponibles.",
+    "locationTimeout": "Se agotó el tiempo de espera de la solicitud de ubicación.",
+    "requestingLocation": "Solicitando acceso a la ubicación...",
+    "retryLocation": "Haga clic en el botón 'Reintentar Acceso a Ubicación' para intentarlo de nuevo.",
+    "selectAtLeastOne": "Seleccione al menos una categoría antes de enviar.",
+    "locationNotAvailable": "Ubicación no disponible. Active el acceso a la ubicación en su navegador e intente nuevamente.",
+    "permissionDenied": "Permiso denegado. Actualice las reglas de seguridad de Firestore para permitir escrituras en la colección \"submissions\".\\n\\nVaya a Firebase Console > Firestore Database > Rules y permita escrituras.",
+    "submitError": "Error al enviar datos. Por favor, inténtelo de nuevo.",
+    "alreadySubmitted": "Ya ha enviado un informe para lo siguiente",
+    "alreadySubmittedSuffix": "Seleccione diferentes categorías o espere antes de enviar nuevamente para la misma categoría."
+  },
+  "success": {
+    "dataSubmitted": "¡Datos enviados con éxito!"
+  },
+  "info": {
+    "title": "Acerca de Terra",
+    "description1": "Terra permite a los usuarios reportar quejas o dar elogios de forma anónima sobre problemas cívicos. Seleccione las casillas y envíe su informe. Puede ver los informes de otros usuarios en el mapa haciendo clic en los marcadores.",
+    "description2": "Los datos de ubicación se utilizan para colocar informes en el mapa, pero no se recopila información de identificación personal, excepto un ID de usuario generado almacenado localmente para evitar envíos duplicados.",
+    "description3": "Los datos de más de 90 días se eliminan automáticamente de nuestros servidores para mantener la información actualizada y relevante.",
+    "close": "Cerrar"
+  },
+  "categories": {
+    "tile1_complaint": "Baches o Carreteras Dañadas",
+    "tile1_compliment": "Carreteras Lisas y Bien Mantenidas",
+    "tile2_complaint": "Basura Apilada o Contenedores Desbordados",
+    "tile2_compliment": "Calles Limpias y Contenedores Vaciados",
+    "tile3_complaint": "Aceras Bloqueadas o Dañadas",
+    "tile3_compliment": "Aceras Despejadas y Seguras para Caminar",
+    "tile4_complaint": "Alcantarillado con Fugas o Desagües Abiertos",
+    "tile4_compliment": "Drenaje Seguro y Funcional",
+    "tile5_complaint": "Sin Acceso a Agua Potable Limpia",
+    "tile5_compliment": "Suministro Público de Agua Confiable",
+    "tile6_complaint": "Niveles Altos de Contaminación del Aire",
+    "tile6_compliment": "Calidad de Aire Fresco y Respirable",
+    "tile7_complaint": "Farolas Rotas o Sin Alumbrado Público",
+    "tile7_compliment": "Iluminación Callejera Brillante y Segura",
+    "tile8_complaint": "Estacionamiento Ilegal o Invasión",
+    "tile8_compliment": "Espacios Públicos Despejados, Sin Invasiones",
+    "tile9_complaint": "Peligros para la Salud (ej., Cría de Mosquitos o Agua Estancada)",
+    "tile9_compliment": "Ambiente Seguro, Sin Peligros",
+    "tile10_complaint": "Encharcamiento o Inundaciones Después de Lluvias",
+    "tile10_compliment": "Drenaje Rápido, Sin Inundaciones",
+    "tile11_complaint": "Congestión de Tráfico o Semáforos Rotos",
+    "tile11_compliment": "Flujo de Tráfico Suave",
+    "tile12_complaint": "Contaminación Acústica (ej., Altavoces o Bocinas)",
+    "tile12_compliment": "Ambiente Tranquilo"
+  }
+}

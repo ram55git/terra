@@ -291,8 +291,10 @@ const MapSection = ({ location, address, isLoading }) => {
             <span>Mixed</span>
           </div>
         </div>
+        </div>
+        <div>
         <p className="text-xs">Click markers for category breakdown</p>
-      </div>
+        </div>
     </div>
 
       {/* Category Breakdown Dialog - Rendered outside map container to ensure proper z-index */}

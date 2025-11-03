@@ -46,6 +46,21 @@ export const CATEGORIES = {
     complaint: 'Health Hazards (e.g., Mosquito Breeding or Stagnant Water)',
     compliment: 'Safe, Hazard-Free Environment',
     categoryId: 'health'
+  },
+  tile10: {
+    complaint: 'Water Logging or Flooding After Rains',
+    compliment: 'Quick Drain Clearance, No Floods',
+    categoryId: 'flooding'
+  },
+  tile11: {
+    complaint: 'Traffic Congestion or Broken Signals',
+    compliment: 'Smooth Traffic Flow',
+    categoryId: 'traffic'  // Covers honking chaos too
+  },
+  tile12: {
+    complaint: 'Noise Pollution (e.g., Loudspeakers or Horns)',
+    compliment: 'Peaceful Environment',
+    categoryId: 'noise'
   }
 };
 

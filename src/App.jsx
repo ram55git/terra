@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from './firebase/config';
 import { getUserId } from './utils/userId';
@@ -6,8 +7,11 @@ import { getCategoryId, CATEGORIES } from './utils/categories';
 import { calculateDistance } from './utils/clustering';
 import TileGrid from './components/TileGrid';
 import MapSection from './components/MapSection';
+import InfoDialog from './components/InfoDialog';
+import LanguageSwitcher from './components/LanguageSwitcher';
 
 function App() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState('Complaint'); // 'Complaint' or 'Compliment'
   const [selectedTiles, setSelectedTiles] = useState({});
   const [location, setLocation] = useState(null);
@@ -15,6 +19,7 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locationError, setLocationError] = useState(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   // Function to get user location
   const getLocation = () => {
@@ -22,9 +27,9 @@ function App() {
     setLocationError(null);
     
     if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported by your browser.');
+      setLocationError(t('errors.locationNotSupported'));
       setIsLoadingLocation(false);
-      setAddress('Geolocation not supported');
+      setAddress(t('errors.locationNotSupported'));
       return;
     }
 
@@ -36,8 +41,8 @@ function App() {
         console.log('Geolocation permission status:', result.state);
         if (result.state === 'denied') {
           setIsLoadingLocation(false);
-          setLocationError('Location access was denied. Please allow location access in your browser settings.');
-          setAddress('Location access denied');
+          setLocationError(t('errors.locationDenied'));
+          setAddress(t('errors.locationDenied'));
           return;
         }
       }).catch((err) => {
@@ -94,28 +99,24 @@ function App() {
       console.error('========================================');
 
       setIsLoadingLocation(false);
-      let errorMessage = 'Unable to get your location. ';
+      let errorMessage = '';
       let detailedMessage = '';
       
       if (errorCode === 1) { // PERMISSION_DENIED
-        errorMessage += 'Location access was denied.';
-        detailedMessage = 'Please check your browser settings and ensure location access is allowed for this site. Click the lock icon in the address bar to manage permissions.';
-        setAddress('Location access denied');
+        errorMessage = t('errors.locationDenied');
+        setAddress(t('errors.locationDenied'));
       } else if (errorCode === 2) { // POSITION_UNAVAILABLE
-        errorMessage += 'Location services are unavailable.';
-        detailedMessage = 'Your device cannot determine your location. This might be due to:\n• GPS/location services disabled on your device\n• No internet connection for network-based location\n• Location services not available on this device';
-        setAddress('Location unavailable');
+        errorMessage = t('errors.locationUnavailable');
+        setAddress(t('errors.locationUnavailable'));
       } else if (errorCode === 3) { // TIMEOUT
-        errorMessage += 'Location request timed out.';
-        detailedMessage = 'The request took too long. This might be due to poor GPS signal or network issues. Please try again.';
-        setAddress('Location request timed out');
+        errorMessage = t('errors.locationTimeout');
+        setAddress(t('errors.locationTimeout'));
       } else {
-        errorMessage += 'An unknown error occurred.';
-        detailedMessage = `Error code: ${errorCode}, Message: ${error.message || 'No message available'}`;
-        setAddress('Location error');
+        errorMessage = t('errors.locationTimeout');
+        setAddress(t('errors.locationTimeout'));
       }
       
-      setLocationError(errorMessage + (detailedMessage ? '\n\n' + detailedMessage : ''));
+      setLocationError(errorMessage);
     };
 
     // Try getCurrentPosition first
@@ -188,9 +189,9 @@ function App() {
   const handleSubmit = async () => {
     if (!location) {
       if (locationError) {
-        alert(locationError + '\n\nPlease click "Retry Location Access" button to try again.');
+        alert(locationError + '\n\n' + t('errors.retryLocation'));
       } else {
-        alert('Location not available. Please enable location access in your browser and try again.');
+        alert(t('errors.locationNotAvailable'));
       }
       return;
     }
@@ -201,7 +202,7 @@ function App() {
       .map(tileId => getCategoryId(tileId));
 
     if (selectedCategoryIds.length === 0) {
-      alert('Please select at least one category before submitting.');
+      alert(t('errors.selectAtLeastOne'));
       return;
     }
 
@@ -271,7 +272,7 @@ function App() {
           return catId;
         }).join(', ');
         
-        alert(`You have already submitted a report for the following ${duplicateCategories.length > 1 ? 'categories' : 'category'}: ${categoryLabels}\n\nPlease select different categories or wait before submitting again for the same category.`);
+        alert(`${t('errors.alreadySubmitted')} ${duplicateCategories.length > 1 ? 'categories' : 'category'}: ${categoryLabels}\n\n${t('errors.alreadySubmittedSuffix')}`);
         return;
       }
 
@@ -290,16 +291,16 @@ function App() {
 
       await addDoc(collection(db, 'submissions'), dataToStore);
       
-      alert('Data submitted successfully!');
+      alert(t('success.dataSubmitted'));
       
       // Reset form
       setSelectedTiles({});
     } catch (error) {
       console.error('Error submitting data:', error);
       if (error.code === 'permission-denied') {
-        alert('Permission denied. Please update your Firestore security rules to allow writes to the "submissions" collection.\n\nGo to Firebase Console > Firestore Database > Rules and allow writes.');
+        alert(t('errors.permissionDenied'));
       } else {
-        alert('Error submitting data. Please try again.');
+        alert(t('errors.submitError'));
       }
     } finally {
       setIsSubmitting(false);
@@ -308,10 +309,15 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-4 py-8 max-w-6xl relative">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">Terra</h1>
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">{t('app.title')}</h1>
+          
+          {/* Language Switcher */}
+          <div className="flex justify-center mb-4">
+            <LanguageSwitcher />
+          </div>
           
           {/* Toggle Button */}
           <div className="inline-flex rounded-lg bg-white shadow-md p-1 mb-6">
@@ -326,7 +332,7 @@ function App() {
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
-              Complaint
+              {t('app.complaint')}
             </button>
             <button
               onClick={() => {
@@ -339,21 +345,35 @@ function App() {
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
-              Compliment
+              {t('app.compliment')}
             </button>
           </div>
+        </div>
+
+        {/* Info button (top-right) */}
+        <div className="absolute top-4 right-4 z-50">
+          <button
+            onClick={() => setIsInfoOpen(true)}
+            aria-label="Show information about this site"
+            className="bg-white rounded-full p-2 shadow hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          >
+            {/* Info SVG */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20.5A8.5 8.5 0 1 1 20.5 12 8.509 8.509 0 0 1 12 20.5z" />
+            </svg>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Input Section */}
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-              {mode === 'Complaint' ? 'Report a Complaint' : 'Give a Compliment'}
+              {mode === 'Complaint' ? t('app.reportComplaint') : t('app.giveCompliment')}
             </h2>
             
             <div className="mt-6">
               <h3 className="text-lg font-medium text-gray-700 mb-3">
-                {mode === 'Complaint' ? 'Select Issues' : 'Select Categories'} (Click tiles to select/deselect):
+                {mode === 'Complaint' ? t('app.selectIssues') : t('app.selectCategories')} {t('app.clickTiles')}
               </h3>
               <TileGrid 
                 selectedTiles={selectedTiles} 
@@ -373,14 +393,14 @@ function App() {
                   : 'bg-green-500 hover:bg-green-600'
               }`}
             >
-              {isSubmitting ? 'Submitting...' : 'Submit'}
+              {isSubmitting ? t('app.submitting') : t('app.submit')}
             </button>
           </div>
 
           {/* Map Section */}
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-              Location
+              {t('app.location')}
             </h2>
             {locationError && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -389,13 +409,13 @@ function App() {
                   onClick={getLocation}
                   className="text-sm bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md transition-colors"
                 >
-                  Retry Location Access
+                  {t('app.retryLocation')}
                 </button>
               </div>
             )}
             {isLoadingLocation && !locationError && (
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">Requesting location access...</p>
+                <p className="text-sm text-blue-800">{t('errors.requestingLocation')}</p>
               </div>
             )}
             <MapSection 
@@ -406,6 +426,7 @@ function App() {
           </div>
         </div>
       </div>
+      <InfoDialog open={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
     </div>
   );
 }
