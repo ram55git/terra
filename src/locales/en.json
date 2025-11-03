@@ -32,7 +32,7 @@
   },
   "info": {
     "title": "About Terra",
-    "description1": "Terra lets users report complaints or give compliments anonymously about civic issues. Select the tiles and submit your report. You can view the reports from other users on the map by clicking on the markers.",
+    "description1": "Terra lets users report complaints or give compliments anonymously about civic issues that authorities can view on a map and address them. Select the tiles and submit your report. You can view the reports from other users on the map by clicking on the markers.",
     "description2": "Location data is used to place reports on the map but no personally-identifiable information is collected other than a generated user id stored locally to prevent duplicate submissions.",
     "description3": "Data older than 90 days is automatically deleted from our servers to keep the information current and relevant.",
     "close": "Close"

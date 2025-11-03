@@ -30,6 +30,19 @@ function MapController({ center, zoom }) {
   return null;
 }
 
+// Helper to force Leaflet to recalculate dimensions when container size changes
+function InvalidateOnResize({ trigger }) {
+  const map = useMap();
+  useEffect(() => {
+    // slight delay to ensure DOM applied
+    const id = setTimeout(() => {
+      try { map.invalidateSize(); } catch {}
+    }, 100);
+    return () => clearTimeout(id);
+  }, [map, trigger]);
+  return null;
+}
+
 const MapSection = ({ location, address, isLoading }) => {
   const [submissions, setSubmissions] = useState([]);
   const [clusters, setClusters] = useState([]);
@@ -37,6 +50,15 @@ const MapSection = ({ location, address, isLoading }) => {
   const [firebaseBlocked, setFirebaseBlocked] = useState(false);
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Close expanded map with Escape key
+  useEffect(() => {
+    if (!isExpanded) return;
+    const onKey = (e) => { if (e.key === 'Escape') setIsExpanded(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isExpanded]);
 
   // Fetch all submissions from Firebase
   useEffect(() => {
@@ -178,6 +200,18 @@ const MapSection = ({ location, address, isLoading }) => {
       )}
 
       <div className="w-full h-96 rounded-lg overflow-hidden border-2 border-gray-300 relative">
+        {/* Expand (maximize) button */}
+        <button
+          type="button"
+          onClick={() => setIsExpanded(true)}
+          className="absolute top-2 right-2 z-[1000] bg-white/90 hover:bg-white rounded-md p-2 shadow focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          title="Expand map"
+          aria-label="Expand map"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-gray-700">
+            <path d="M3 9V5a2 2 0 0 1 2-2h4a1 1 0 1 1 0 2H5v3a1 1 0 1 1-2 0Zm18 0V5a2 2 0 0 0-2-2h-4a1 1 0 1 0 0 2h4v3a1 1 0 1 0 2 0ZM3 15v4a2 2 0 0 0 2 2h4a1 1 0 1 0 0-2H5v-4a1 1 0 1 0-2 0Zm18 0v4a2 2 0 0 1-2 2h-4a1 1 0 1 1 0-2h4v-4a1 1 0 1 1 2 0Z" />
+          </svg>
+        </button>
         {isLoading ? (
           <div className="h-full bg-gray-100 flex items-center justify-center">
             <p className="text-gray-500">Loading map...</p>
@@ -295,6 +329,135 @@ const MapSection = ({ location, address, isLoading }) => {
           </MapContainer>
         )}
       </div>
+
+      {/* Expanded full-screen map overlay */}
+      {isExpanded && (
+        <div className="fixed inset-0 bg-black/40 z-[9000]">
+          <div className="absolute inset-4 bg-white rounded-lg shadow-2xl overflow-hidden">
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setIsExpanded(false)}
+              className="absolute top-3 right-3 z-[9100] bg-white/90 hover:bg-white rounded-md p-2 shadow focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              title="Close expanded map"
+              aria-label="Close expanded map"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-gray-700">
+                <path d="M9 3H5a2 2 0 0 0-2 2v4a1 1 0 1 0 2 0V5h4a1 1 0 1 0 0-2Zm10 0h-4a1 1 0 1 0 0 2h4v4a1 1 0 1 0 2 0V5a2 2 0 0 0-2-2ZM3 15a1 1 0 1 0-2 0v4a2 2 0 0 0 2 2h4a1 1 0 1 0 0-2H5v-4Zm20 0a1 1 0 1 0-2 0v4h-4a1 1 0 1 0 0 2h4a2 2 0 0 0 2-2v-4Z" />
+              </svg>
+            </button>
+            <div className="w-full h-full">
+              <MapContainer
+                center={defaultCenter}
+                zoom={location ? 15 : 12}
+                style={{ height: '100%', width: '100%' }}
+                scrollWheelZoom={true}
+              >
+                <InvalidateOnResize trigger={isExpanded} />
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {location && (
+                  <MapController center={[location.lat, location.lon]} zoom={15} />
+                )}
+
+                {clusters.map((cluster) => {
+                  const hasComplaint = cluster.modes.Complaint > 0;
+                  const hasCompliment = cluster.modes.Compliment > 0;
+                  const icon = createCustomIcon(
+                    cluster.count,
+                    hasComplaint,
+                    hasCompliment
+                  );
+
+                  return (
+                    <Marker
+                      key={`expanded-${cluster.id}`}
+                      position={[cluster.center.lat, cluster.center.lon]}
+                      icon={icon}
+                      eventHandlers={{
+                        click: () => {
+                          setSelectedCluster(cluster);
+                          setShowCategoryDialog(true);
+                        }
+                      }}
+                    >
+                      <Popup>
+                        <div className="p-2 min-w-[200px]">
+                          <h3 className="font-bold text-lg mb-2">
+                            {cluster.count} {cluster.count === 1 ? 'Report' : 'Reports'}
+                          </h3>
+                          <div className="space-y-1 text-sm">
+                            <p>
+                              <span className="font-semibold">Location:</span>{' '}
+                              {cluster.center.lat.toFixed(6)}, {cluster.center.lon.toFixed(6)}
+                            </p>
+                            {hasComplaint && (
+                              <p className="text-red-600">
+                                <span className="font-semibold">Complaints:</span> {cluster.modes.Complaint}
+                              </p>
+                            )}
+                            {hasCompliment && (
+                              <p className="text-green-600">
+                                <span className="font-semibold">Compliments:</span> {cluster.modes.Compliment}
+                              </p>
+                            )}
+                            {cluster.submissions.length > 0 && cluster.submissions[0].address && (
+                              <p className="text-gray-600 text-xs mt-2">
+                                {cluster.submissions[0].address}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCluster(cluster);
+                              setShowCategoryDialog(true);
+                            }}
+                            className="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded transition-colors"
+                          >
+                            View Category Breakdown
+                          </button>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+
+                {location && (
+                  <Marker 
+                    position={[location.lat, location.lon]}
+                    icon={divIcon({
+                      className: 'user-location-marker',
+                      html: `
+                        <div style="
+                          background-color: #3b82f6;
+                          width: 16px;
+                          height: 16px;
+                          border-radius: 50%;
+                          border: 3px solid white;
+                          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                        "></div>
+                      `,
+                      iconSize: [16, 16],
+                      iconAnchor: [8, 8],
+                      popupAnchor: [0, -8],
+                    })}
+                  >
+                    <Popup>
+                      <div className="p-2">
+                        <h3 className="font-bold mb-1">Your Current Location</h3>
+                        <p className="text-sm text-gray-600">{address}</p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+              </MapContainer>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between text-sm text-gray-600">
         <div className="flex items-center gap-4">
