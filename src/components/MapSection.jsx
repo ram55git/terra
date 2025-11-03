@@ -43,9 +43,29 @@ const MapSection = ({ location, address, isLoading }) => {
     const q = query(collection(db, 'submissions'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const data = [];
+      const now = new Date();
+      const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+      
       querySnapshot.forEach((doc) => {
-        data.push({ id: doc.id, ...doc.data() });
+        const docData = doc.data();
+        const timestamp = docData.timestamp;
+        
+        // Parse timestamp and check if it's within last 90 days
+        if (timestamp) {
+          const submissionDate = new Date(timestamp);
+          
+          // Only include submissions from last 90 days
+          if (submissionDate >= ninetyDaysAgo) {
+            data.push({ id: doc.id, ...docData });
+          } else {
+            console.log(`Filtered out old submission from ${submissionDate.toLocaleDateString()}`);
+          }
+        } else {
+          // If no timestamp, include it (backward compatibility)
+          data.push({ id: doc.id, ...docData });
+        }
       });
+      
       setSubmissions(data);
       setLoadingData(false);
     }, (error) => {
