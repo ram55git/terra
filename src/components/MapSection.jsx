@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import { Icon, divIcon } from 'leaflet';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { clusterLocations } from '../utils/clustering';
 import { CATEGORIES } from '../utils/categories';
@@ -19,14 +19,67 @@ Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-// Component to center map on user location
+// Component to center map on user location (only on initial load)
 function MapController({ center, zoom }) {
   const map = useMap();
+  const hasSetView = useRef(false);
+  
   useEffect(() => {
-    if (center) {
-      map.setView(center, zoom || 15);
-    }
+    // Only set view once when center first becomes available
+    if (!center || hasSetView.current) return;
+    
+    hasSetView.current = true;
+    map.setView(center, zoom || 15);
   }, [center, zoom, map]);
+  
+  return null;
+}
+
+// Component to handle map viewport changes and fetch data for visible area
+function MapViewportHandler({ onBoundsChange }) {
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const lastBoundsRef = useRef(null);
+  
+  const map = useMapEvents({
+    moveend: () => {
+      if (!hasLoaded) return;
+      
+      const bounds = map.getBounds();
+      const boundsKey = `${bounds.getNorth()},${bounds.getSouth()},${bounds.getEast()},${bounds.getWest()}`;
+      
+      // Only trigger if bounds actually changed
+      if (lastBoundsRef.current !== boundsKey) {
+        lastBoundsRef.current = boundsKey;
+        onBoundsChange(bounds);
+      }
+    },
+    zoomend: () => {
+      if (!hasLoaded) return;
+      
+      const bounds = map.getBounds();
+      const boundsKey = `${bounds.getNorth()},${bounds.getSouth()},${bounds.getEast()},${bounds.getWest()}`;
+      
+      // Only trigger if bounds actually changed
+      if (lastBoundsRef.current !== boundsKey) {
+        lastBoundsRef.current = boundsKey;
+        onBoundsChange(bounds);
+      }
+    },
+  });
+
+  // Trigger initial load only once
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const bounds = map.getBounds();
+      const boundsKey = `${bounds.getNorth()},${bounds.getSouth()},${bounds.getEast()},${bounds.getWest()}`;
+      lastBoundsRef.current = boundsKey;
+      onBoundsChange(bounds);
+      setHasLoaded(true);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   return null;
 }
 
@@ -51,6 +104,9 @@ const MapSection = ({ location, address, isLoading }) => {
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [currentBounds, setCurrentBounds] = useState(null);
+  const isFetchingRef = useRef(false);
+  const fetchTimeoutRef = useRef(null);
 
   // Close expanded map with Escape key
   useEffect(() => {
@@ -60,37 +116,58 @@ const MapSection = ({ location, address, isLoading }) => {
     return () => document.removeEventListener('keydown', onKey);
   }, [isExpanded]);
 
-  // Fetch all submissions from Firebase
-  useEffect(() => {
-    const q = query(collection(db, 'submissions'));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const data = [];
+  // Fetch submissions within viewport bounds
+  const fetchSubmissionsInBounds = useCallback(async (bounds) => {
+    if (!bounds || isFetchingRef.current) return;
+    
+    isFetchingRef.current = true;
+    try {
+      setLoadingData(true);
+      
+      const southWest = bounds.getSouthWest();
+      const northEast = bounds.getNorthEast();
+      
+      // Calculate 90 days ago timestamp
       const now = new Date();
       const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+      const ninetyDaysAgoISO = ninetyDaysAgo.toISOString();
+      
+      // Query Firestore with bounding box and time filter
+      // Note: Firestore has limitations - we can only use one range filter at a time
+      // So we'll filter by timestamp first, then filter by bounds in memory
+      const submissionsRef = collection(db, 'submissions');
+      const q = query(
+        submissionsRef,
+        where('timestamp', '>=', ninetyDaysAgoISO)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const data = [];
       
       querySnapshot.forEach((doc) => {
         const docData = doc.data();
-        const timestamp = docData.timestamp;
         
-        // Parse timestamp and check if it's within last 90 days
-        if (timestamp) {
-          const submissionDate = new Date(timestamp);
+        // Filter by viewport bounds in memory
+        if (docData.location) {
+          const lat = docData.location.lat;
+          const lon = docData.location.lon;
           
-          // Only include submissions from last 90 days
-          if (submissionDate >= ninetyDaysAgo) {
+          if (
+            lat >= southWest.lat &&
+            lat <= northEast.lat &&
+            lon >= southWest.lng &&
+            lon <= northEast.lng
+          ) {
             data.push({ id: doc.id, ...docData });
-          } else {
-            console.log(`Filtered out old submission from ${submissionDate.toLocaleDateString()}`);
           }
-        } else {
-          // If no timestamp, include it (backward compatibility)
-          data.push({ id: doc.id, ...docData });
         }
       });
       
+      console.log(`Loaded ${data.length} submissions in viewport (last 90 days)`);
       setSubmissions(data);
       setLoadingData(false);
-    }, (error) => {
+      setFirebaseBlocked(false);
+    } catch (error) {
       console.error('Error fetching submissions:', error);
       setLoadingData(false);
       
@@ -99,10 +176,25 @@ const MapSection = ({ location, address, isLoading }) => {
         console.warn('Firebase request may be blocked by ad blocker or network issue.');
         setFirebaseBlocked(true);
       }
-    });
-
-    return () => unsubscribe();
+    } finally {
+      isFetchingRef.current = false;
+    }
   }, []);
+
+  // Handle viewport bounds change with debouncing
+  const handleBoundsChange = useCallback((bounds) => {
+    // Clear any pending fetch
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+    
+    setCurrentBounds(bounds);
+    
+    // Debounce fetch by 600ms to avoid rapid successive calls
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchSubmissionsInBounds(bounds);
+    }, 600);
+  }, [fetchSubmissionsInBounds]);
 
   // Cluster submissions when data changes
   useEffect(() => {
@@ -194,8 +286,14 @@ const MapSection = ({ location, address, isLoading }) => {
         </div>
       )}
       {loadingData && !firebaseBlocked && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-sm text-blue-800">Loading reports...</p>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+          <p className="text-sm text-blue-800">Loading reports in view...</p>
+          <button
+            onClick={() => currentBounds && fetchSubmissionsInBounds(currentBounds)}
+            className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded transition-colors"
+          >
+            Refresh
+          </button>
         </div>
       )}
 
@@ -227,6 +325,9 @@ const MapSection = ({ location, address, isLoading }) => {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            
+            {/* Handle viewport changes */}
+            <MapViewportHandler onBoundsChange={handleBoundsChange} />
             
             {/* Center map on user location if available */}
             {location && (
@@ -358,6 +459,10 @@ const MapSection = ({ location, address, isLoading }) => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                
+                {/* Handle viewport changes in expanded map */}
+                <MapViewportHandler onBoundsChange={handleBoundsChange} />
+                
                 {location && (
                   <MapController center={[location.lat, location.lon]} zoom={15} />
                 )}
@@ -474,9 +579,12 @@ const MapSection = ({ location, address, isLoading }) => {
             <span>Mixed</span>
           </div>
         </div>
+        <div className="text-xs text-gray-500">
+          {submissions.length} report{submissions.length !== 1 ? 's' : ''} in view
+        </div>
         </div>
         <div>
-        <p className="text-xs">Click markers for category breakdown</p>
+        <p className="text-xs">Pan/zoom map to load nearby reports • Click markers for details</p>
         </div>
     </div>
 
