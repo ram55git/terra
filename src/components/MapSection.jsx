@@ -105,13 +105,19 @@ const MapSection = ({ location, address, isLoading }) => {
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentBounds, setCurrentBounds] = useState(null);
+  const [expandedFilter, setExpandedFilter] = useState('all'); // 'all', 'top10complaints', 'top10compliments'
   const isFetchingRef = useRef(false);
   const fetchTimeoutRef = useRef(null);
 
   // Close expanded map with Escape key
   useEffect(() => {
     if (!isExpanded) return;
-    const onKey = (e) => { if (e.key === 'Escape') setIsExpanded(false); };
+    const onKey = (e) => { 
+      if (e.key === 'Escape') {
+        setIsExpanded(false);
+        setExpandedFilter('all'); // Reset filter when closing
+      }
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [isExpanded]);
@@ -206,6 +212,23 @@ const MapSection = ({ location, address, isLoading }) => {
     }
   }, [submissions]);
 
+  // Get filtered clusters for expanded view
+  const getFilteredClusters = () => {
+    if (expandedFilter === 'all') return clusters;
+    
+    // Sort clusters by complaint or compliment count
+    const sorted = [...clusters].sort((a, b) => {
+      if (expandedFilter === 'top10complaints') {
+        return b.modes.Complaint - a.modes.Complaint;
+      } else {
+        return b.modes.Compliment - a.modes.Compliment;
+      }
+    });
+    
+    // Return top 10
+    return sorted.slice(0, 10);
+  };
+
   // Create custom icons for markers using divIcon
   const createCustomIcon = (count, hasComplaint, hasCompliment) => {
     let iconColor = '#3388ff'; // Default blue
@@ -283,17 +306,6 @@ const MapSection = ({ location, address, isLoading }) => {
             <li>Or allow this site in your extension settings</li>
           </ul>
           <p className="text-xs text-orange-600">The map will work once Firebase can connect.</p>
-        </div>
-      )}
-      {loadingData && !firebaseBlocked && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
-          <p className="text-sm text-blue-800">Loading reports in view...</p>
-          <button
-            onClick={() => currentBounds && fetchSubmissionsInBounds(currentBounds)}
-            className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded transition-colors"
-          >
-            Refresh
-          </button>
         </div>
       )}
 
@@ -435,10 +447,53 @@ const MapSection = ({ location, address, isLoading }) => {
       {isExpanded && (
         <div className="fixed inset-0 bg-black/40 z-[9000]">
           <div className="absolute inset-4 bg-white rounded-lg shadow-2xl overflow-hidden">
+            {/* Filter buttons */}
+            <div className="absolute top-3 left-3 z-[9100] flex gap-2">
+              <button
+                type="button"
+                onClick={() => setExpandedFilter('all')}
+                className={`px-4 py-2 rounded-md shadow font-semibold text-sm transition-all ${
+                  expandedFilter === 'all'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white/90 hover:bg-white text-gray-700'
+                }`}
+                title="Show all reports"
+              >
+                All Reports
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpandedFilter('top10complaints')}
+                className={`px-4 py-2 rounded-md shadow font-semibold text-sm transition-all ${
+                  expandedFilter === 'top10complaints'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-white/90 hover:bg-white text-gray-700'
+                }`}
+                title="Show top 10 complaints"
+              >
+                Top 10 Complaints
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpandedFilter('top10compliments')}
+                className={`px-4 py-2 rounded-md shadow font-semibold text-sm transition-all ${
+                  expandedFilter === 'top10compliments'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white/90 hover:bg-white text-gray-700'
+                }`}
+                title="Show top 10 compliments"
+              >
+                Top 10 Compliments
+              </button>
+            </div>
+            
             {/* Close button */}
             <button
               type="button"
-              onClick={() => setIsExpanded(false)}
+              onClick={() => {
+                setIsExpanded(false);
+                setExpandedFilter('all'); // Reset filter when closing
+              }}
               className="absolute top-3 right-3 z-[9100] bg-white/90 hover:bg-white rounded-md p-2 shadow focus:outline-none focus:ring-2 focus:ring-indigo-300"
               title="Close expanded map"
               aria-label="Close expanded map"
@@ -467,7 +522,7 @@ const MapSection = ({ location, address, isLoading }) => {
                   <MapController center={[location.lat, location.lon]} zoom={15} />
                 )}
 
-                {clusters.map((cluster) => {
+                {getFilteredClusters().map((cluster) => {
                   const hasComplaint = cluster.modes.Complaint > 0;
                   const hasCompliment = cluster.modes.Compliment > 0;
                   const icon = createCustomIcon(
