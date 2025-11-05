@@ -35,8 +35,9 @@ service cloud.firestore {
       // Allow read for all users (public map viewing)
       allow read: if true;
       
-      // Allow create with validation
-      allow create: if hasRequiredFields(request.resource.data)
+      // Allow create ONLY for authenticated users (including anonymous) with validation
+      allow create: if request.auth != null
+        && hasRequiredFields(request.resource.data)
         && isValidMode(request.resource.data.mode)
         && hasValidLocation(request.resource.data.location)
         && isValidTimestamp(request.resource.data.timestamp)

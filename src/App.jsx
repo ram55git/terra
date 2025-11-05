@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
-import { db } from './firebase/config';
+import { db, ensureAuth } from './firebase/config';
 import { getUserId } from './utils/userId';
 import { getCategoryId, CATEGORIES } from './utils/categories';
 import { calculateDistance } from './utils/clustering';
@@ -223,6 +223,9 @@ function App() {
     setIsSubmitting(true);
 
     try {
+      // Ensure user is authenticated (anonymous) before submitting
+      await ensureAuth();
+      
       const userId = getUserId();
       
       // Check for existing submissions from this user for any of the selected categories
