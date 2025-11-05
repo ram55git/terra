@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from './firebase/config';
 import { getUserId } from './utils/userId';
 import { getCategoryId, CATEGORIES } from './utils/categories';
 import { calculateDistance } from './utils/clustering';
+import { isValidLatitude, isValidLongitude, sanitizeString, validateSelectedTiles } from './utils/validation';
 import TileGrid from './components/TileGrid';
 import MapSection from './components/MapSection';
 import InfoDialog from './components/InfoDialog';
@@ -21,6 +22,7 @@ function App() {
   const [locationError, setLocationError] = useState(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const mapRefreshFnRef = useRef(null);
 
   // Function to get user location
   const getLocation = () => {
@@ -34,20 +36,17 @@ function App() {
       return;
     }
 
-    console.log('Attempting to get location...');
-
     // Check if permissions API is available (for Chrome/Edge)
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-        console.log('Geolocation permission status:', result.state);
         if (result.state === 'denied') {
           setIsLoadingLocation(false);
           setLocationError(t('errors.locationDenied'));
           setAddress(t('errors.locationDenied'));
           return;
         }
-      }).catch((err) => {
-        console.log('Permission query failed:', err);
+      }).catch(() => {
+        // Permission query not supported, continue anyway
       });
     }
 
@@ -66,8 +65,16 @@ function App() {
     };
 
     const successCallback = async (position) => {
-      console.log('Location obtained successfully:', position);
       const { latitude, longitude } = position.coords;
+      
+      // Validate coordinates before using
+      if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
+        setLocationError(t('errors.locationUnavailable'));
+        setAddress('Invalid location coordinates');
+        setIsLoadingLocation(false);
+        return;
+      }
+      
       setLocation({ lat: latitude, lon: longitude });
       setIsLoadingLocation(false);
       
@@ -81,27 +88,26 @@ function App() {
             }
           }
         );
+        
+        if (!response.ok) {
+          throw new Error('Geocoding failed');
+        }
+        
         const data = await response.json();
-        setAddress(data.display_name || 'Address not found');
+        
+        // Sanitize the address from external API
+        const sanitizedAddress = sanitizeString(data.display_name || 'Address not found', 500);
+        setAddress(sanitizedAddress);
       } catch (error) {
-        console.error('Error reverse geocoding:', error);
         setAddress('Address not available');
       }
     };
 
     const errorCallback = (error, source = 'getCurrentPosition') => {
-      // Log full error details with clear formatting
       const errorCode = error.code;
-      console.error('========================================');
-      console.error(`Geolocation Error (${source}):`);
-      console.error(`  Error Code: ${errorCode}`);
-      console.error(`  Error Message: ${error.message || 'No message'}`);
-      console.error(`  Code Meaning: ${errorCode === 1 ? 'PERMISSION_DENIED' : errorCode === 2 ? 'POSITION_UNAVAILABLE' : errorCode === 3 ? 'TIMEOUT' : 'UNKNOWN'}`);
-      console.error('========================================');
 
       setIsLoadingLocation(false);
       let errorMessage = '';
-      let detailedMessage = '';
       
       if (errorCode === 1) { // PERMISSION_DENIED
         errorMessage = t('errors.locationDenied');
@@ -124,8 +130,6 @@ function App() {
     navigator.geolocation.getCurrentPosition(
       successCallback,
       (error) => {
-        console.log('getCurrentPosition failed with error code:', error.code);
-        
         // Only try watchPosition as fallback if it's not a permission error
         if (error.code === 1) {
           // Permission denied - don't retry, just show error
@@ -133,7 +137,6 @@ function App() {
           return;
         }
         
-        console.log('Trying watchPosition as fallback with more lenient options...');
         // If getCurrentPosition fails with timeout or unavailable, try watchPosition
         let watchId = null;
         let watchSuccess = false;
@@ -141,7 +144,6 @@ function App() {
         const watchTimeout = setTimeout(() => {
           if (!watchSuccess && watchId !== null) {
             navigator.geolocation.clearWatch(watchId);
-            console.log('watchPosition also timed out after 30 seconds');
             errorCallback(error, 'watchPosition (timeout)');
           }
         }, lenientOptions.timeout);
@@ -154,7 +156,6 @@ function App() {
                 navigator.geolocation.clearWatch(watchId);
               }
               clearTimeout(watchTimeout);
-              console.log('watchPosition succeeded!');
               successCallback(position);
             }
           },
@@ -164,7 +165,6 @@ function App() {
                 navigator.geolocation.clearWatch(watchId);
               }
               clearTimeout(watchTimeout);
-              console.log('watchPosition failed with error code:', watchError.code);
               errorCallback(watchError, 'watchPosition');
             }
           },
@@ -188,12 +188,25 @@ function App() {
   };
 
   const handleSubmit = async () => {
+    // Validate location exists
     if (!location) {
       if (locationError) {
         alert(locationError + '\n\n' + t('errors.retryLocation'));
       } else {
         alert(t('errors.locationNotAvailable'));
       }
+      return;
+    }
+
+    // Validate location coordinates
+    if (!isValidLatitude(location.lat) || !isValidLongitude(location.lon)) {
+      alert('Invalid location coordinates. Please try refreshing your location.');
+      return;
+    }
+
+    // Validate selected tiles
+    if (!validateSelectedTiles(selectedTiles)) {
+      alert(t('errors.selectAtLeastOne'));
       return;
     }
 
@@ -278,6 +291,9 @@ function App() {
       }
 
       // Proceed with submission
+      // Sanitize address before storing
+      const sanitizedAddress = sanitizeString(address, 500);
+      
       const dataToStore = {
         mode: mode,
         userId: userId, // Add user ID to track submissions
@@ -285,7 +301,7 @@ function App() {
           lat: location.lat,
           lon: location.lon
         },
-        address: address,
+        address: sanitizedAddress,
         selectedTiles: selectedTiles,
         timestamp: new Date().toISOString()
       };
@@ -294,10 +310,14 @@ function App() {
       
       alert(t('success.dataSubmitted'));
       
+      // Refresh map to show new submission
+      if (mapRefreshFnRef.current) {
+        mapRefreshFnRef.current();
+      }
+      
       // Reset form
       setSelectedTiles({});
     } catch (error) {
-      console.error('Error submitting data:', error);
       if (error.code === 'permission-denied') {
         alert(t('errors.permissionDenied'));
       } else {
@@ -424,6 +444,7 @@ function App() {
               location={location} 
               address={address}
               isLoading={isLoadingLocation}
+              onRefresh={(fn) => { mapRefreshFnRef.current = fn; }}
             />
           </div>
         </div>

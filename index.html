@@ -2,8 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://nominatim.openstreetmap.org wss://*.firebaseio.com; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';">
+    
+    <!-- Additional Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Strict-Transport-Security" content="max-age=31536000; includeSubDomains">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(self), camera=(), microphone=()">
+    
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <title>Terra - Complaint/Compliment</title>
   </head>
   <body>

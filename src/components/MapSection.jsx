@@ -96,7 +96,7 @@ function InvalidateOnResize({ trigger }) {
   return null;
 }
 
-const MapSection = ({ location, address, isLoading }) => {
+const MapSection = ({ location, address, isLoading, onRefresh }) => {
   const [submissions, setSubmissions] = useState([]);
   const [clusters, setClusters] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -106,6 +106,7 @@ const MapSection = ({ location, address, isLoading }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentBounds, setCurrentBounds] = useState(null);
   const [expandedFilter, setExpandedFilter] = useState('all'); // 'all', 'top10complaints', 'top10compliments'
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const isFetchingRef = useRef(false);
   const fetchTimeoutRef = useRef(null);
 
@@ -169,23 +170,42 @@ const MapSection = ({ location, address, isLoading }) => {
         }
       });
       
-      console.log(`Loaded ${data.length} submissions in viewport (last 90 days)`);
       setSubmissions(data);
       setLoadingData(false);
       setFirebaseBlocked(false);
     } catch (error) {
-      console.error('Error fetching submissions:', error);
       setLoadingData(false);
       
       // Check if it's a blocked request (ad blocker)
       if (error.code === 'unavailable' || error.message?.includes('blocked') || error.message?.includes('network')) {
-        console.warn('Firebase request may be blocked by ad blocker or network issue.');
         setFirebaseBlocked(true);
       }
     } finally {
       isFetchingRef.current = false;
     }
   }, []);
+
+  // Expose refresh function to parent via callback
+  useEffect(() => {
+    if (onRefresh) {
+      const refreshFn = () => {
+        setRefreshTrigger(prev => prev + 1);
+      };
+      onRefresh(refreshFn);
+    }
+  }, [onRefresh]);
+
+  // Trigger data refresh when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger > 0 && currentBounds) {
+      // Clear any pending timeout
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+      // Fetch immediately
+      fetchSubmissionsInBounds(currentBounds);
+    }
+  }, [refreshTrigger, currentBounds, fetchSubmissionsInBounds]);
 
   // Handle viewport bounds change with debouncing
   const handleBoundsChange = useCallback((bounds) => {

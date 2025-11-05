@@ -6,7 +6,7 @@ const languages = [
   { code: 'ta', name: 'தமிழ்', flag: '🇮🇳' },
   { code: 'te', name: 'తెలుగు', flag: '🇮🇳' },
   { code: 'kn', name: 'ಕನ್ನಡ', flag: '🇮🇳' },
-  { code: 'ml', name: 'മലയാളം', flag: '��' },
+  { code: 'ml', name: 'മലയാളം', flag: '🇮🇳' },
   { code: 'mr', name: 'मराठी', flag: '🇮🇳' },
   { code: 'bn', name: 'বাংলা', flag: '🇮🇳' },
   { code: 'es', name: 'Español', flag: '🇪🇸' }
