@@ -229,49 +229,51 @@ function App() {
       const userId = getUserId();
       
       // Check for existing submissions from this user for any of the selected categories
-      // Only block if same category AND same location (within 100m)
+      // Only block if same category AND within 100m from current location
       const submissionsRef = collection(db, 'submissions');
       const q = query(submissionsRef, where('userId', '==', userId));
       const querySnapshot = await getDocs(q);
       
-      // Store existing submissions with their categories and locations
-      const existingSubmissions = [];
+      // Store existing submissions by category with their locations
+      // Map: categoryId -> array of locations
+      const existingByCategoryLocation = {};
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         if (data.location && data.selectedTiles) {
-          const submissionCategories = [];
           Object.keys(data.selectedTiles).forEach(tileId => {
             if (data.selectedTiles[tileId]) {
-              submissionCategories.push(getCategoryId(tileId));
+              const categoryId = getCategoryId(tileId);
+              if (!existingByCategoryLocation[categoryId]) {
+                existingByCategoryLocation[categoryId] = [];
+              }
+              existingByCategoryLocation[categoryId].push({
+                lat: data.location.lat,
+                lon: data.location.lon
+              });
             }
-          });
-          existingSubmissions.push({
-            categories: submissionCategories,
-            location: data.location
           });
         }
       });
 
-      // Find categories that user has already submitted at locations within 100m
+      // Find categories that user has already submitted within 100m of current location
       const duplicateCategories = [];
       selectedCategoryIds.forEach(categoryId => {
-        // Check if this category was submitted at any location within 100m
-        const hasDuplicate = existingSubmissions.some(sub => {
-          if (sub.categories.includes(categoryId)) {
-            // Check if location is within 100m (0.1 km)
+        const existingLocations = existingByCategoryLocation[categoryId];
+        if (existingLocations) {
+          // Check if any previous submission for this category is within 100m
+          const hasDuplicateWithin100m = existingLocations.some(prevLocation => {
             const distance = calculateDistance(
               location.lat,
               location.lon,
-              sub.location.lat,
-              sub.location.lon
+              prevLocation.lat,
+              prevLocation.lon
             );
             return distance <= 0.1; // 100m threshold
+          });
+          
+          if (hasDuplicateWithin100m) {
+            duplicateCategories.push(categoryId);
           }
-          return false;
-        });
-        
-        if (hasDuplicate) {
-          duplicateCategories.push(categoryId);
         }
       });
 
