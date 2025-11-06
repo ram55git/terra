@@ -281,15 +281,15 @@ function App() {
           // Find the tile that corresponds to this category
           for (const tileId in selectedTiles) {
             if (selectedTiles[tileId] && getCategoryId(tileId) === catId) {
-              return mode === 'Complaint' 
-                ? CATEGORIES[tileId].complaint
-                : CATEGORIES[tileId].compliment;
+              return mode === 'Complaint'
+                ? t(`categories.${tileId}_complaint`)
+                : t(`categories.${tileId}_compliment`);
             }
           }
           return catId;
         }).join(', ');
-        
-        alert(`${t('errors.alreadySubmitted')} ${duplicateCategories.length > 1 ? 'categories' : 'category'}: ${categoryLabels}\n\n${t('errors.alreadySubmittedSuffix')}`);
+
+        alert(`${t('errors.alreadySubmitted')} ${duplicateCategories.length > 1 ? t('app.selectCategories') : t('app.selectCategories').slice(0, -1)}: ${categoryLabels}\n\n${t('errors.alreadySubmittedSuffix')}`);
         return;
       }
 

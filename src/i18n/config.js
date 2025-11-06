@@ -10,6 +10,11 @@ import ml from '../locales/ml.json';
 import te from '../locales/te.json';
 import mr from '../locales/mr.json';
 import bn from '../locales/bn.json';
+import gu from '../locales/gu.json';
+import pa from '../locales/pa.json';
+import or from '../locales/or.json';
+import as from '../locales/as.json';
+import ur from '../locales/ur.json';
 
 // Get saved language from localStorage or default to English
 const savedLanguage = localStorage.getItem('language') || 'en';
@@ -26,7 +31,12 @@ i18n
       ml: { translation: ml },
       te: { translation: te },
       mr: { translation: mr },
-      bn: { translation: bn }
+      bn: { translation: bn },
+      gu: { translation: gu },
+      pa: { translation: pa },
+      or: { translation: or },
+      as: { translation: as },
+      ur: { translation: ur }
     },
     lng: savedLanguage,
     fallbackLng: 'en',
