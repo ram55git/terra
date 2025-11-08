@@ -187,20 +187,110 @@ function App() {
     }));
   };
 
-  const handleSubmit = async () => {
-    // Validate location exists
-    if (!location) {
-      if (locationError) {
-        alert(locationError + '\n\n' + t('errors.retryLocation'));
-      } else {
-        alert(t('errors.locationNotAvailable'));
+  // Helper function to get fresh location coordinates
+  const getFreshLocation = () => {
+    return new Promise((resolve, reject) => {
+      setIsLoadingLocation(true);
+      setLocationError(null);
+      
+      if (!navigator.geolocation) {
+        setIsLoadingLocation(false);
+        setLocationError(t('errors.locationNotSupported'));
+        reject(new Error(t('errors.locationNotSupported')));
+        return;
       }
+
+      // Check if permissions API is available (for Chrome/Edge)
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+          if (result.state === 'denied') {
+            setIsLoadingLocation(false);
+            setLocationError(t('errors.locationDenied'));
+            reject(new Error(t('errors.locationDenied')));
+            return;
+          }
+        }).catch(() => {
+          // Permission query not supported, continue anyway
+        });
+      }
+
+      const options = {
+        enableHighAccuracy: false,
+        timeout: 10000, // Shorter timeout for submit
+        maximumAge: 0 // Force fresh location
+      };
+
+      const successCallback = (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
+          setIsLoadingLocation(false);
+          reject(new Error('Invalid location coordinates'));
+          return;
+        }
+        
+        const freshLocation = { lat: latitude, lon: longitude };
+        setLocation(freshLocation);
+        setIsLoadingLocation(false);
+        
+        // Also update address
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+          {
+            headers: {
+              'User-Agent': 'Terra-App'
+            }
+          }
+        ).then(response => {
+          if (response.ok) {
+            return response.json();
+          }
+          throw new Error('Geocoding failed');
+        }).then(data => {
+          const sanitizedAddress = sanitizeString(data.display_name || 'Address not found', 500);
+          setAddress(sanitizedAddress);
+        }).catch(() => {
+          setAddress('Address not available');
+        });
+        
+        resolve(freshLocation);
+      };
+
+      const errorCallback = (error) => {
+        setIsLoadingLocation(false);
+        let errorMessage = '';
+        
+        if (error.code === 1) {
+          errorMessage = t('errors.locationDenied');
+        } else if (error.code === 2) {
+          errorMessage = t('errors.locationUnavailable');
+        } else if (error.code === 3) {
+          errorMessage = t('errors.locationTimeout');
+        } else {
+          errorMessage = t('errors.locationTimeout');
+        }
+        
+        setLocationError(errorMessage);
+        reject(new Error(errorMessage));
+      };
+
+      navigator.geolocation.getCurrentPosition(successCallback, errorCallback, options);
+    });
+  };
+
+  const handleSubmit = async () => {
+    // Refresh location coordinates before proceeding
+    let currentLocation;
+    try {
+      currentLocation = await getFreshLocation();
+    } catch (error) {
+      alert(error.message + '\n\n' + t('errors.retryLocation'));
       return;
     }
 
     // Validate location coordinates
-    if (!isValidLatitude(location.lat) || !isValidLongitude(location.lon)) {
-      alert('Invalid location coordinates. Please try refreshing your location.');
+    if (!isValidLatitude(currentLocation.lat) || !isValidLongitude(currentLocation.lon)) {
+      alert('Invalid location coordinates. Please try again.');
       return;
     }
 
@@ -229,7 +319,7 @@ function App() {
       const userId = getUserId();
       
       // Check for existing submissions from this user for any of the selected categories
-      // Only block if same category AND within 100m from current location
+      // Only block if same category AND within 50m from current location
       const submissionsRef = collection(db, 'submissions');
       const q = query(submissionsRef, where('userId', '==', userId));
       const querySnapshot = await getDocs(q);
@@ -255,23 +345,23 @@ function App() {
         }
       });
 
-      // Find categories that user has already submitted within 100m of current location
+      // Find categories that user has already submitted within 50m of current location
       const duplicateCategories = [];
       selectedCategoryIds.forEach(categoryId => {
         const existingLocations = existingByCategoryLocation[categoryId];
         if (existingLocations) {
-          // Check if any previous submission for this category is within 100m
-          const hasDuplicateWithin100m = existingLocations.some(prevLocation => {
+          // Check if any previous submission for this category is within 50m
+          const hasDuplicateWithin50m = existingLocations.some(prevLocation => {
             const distance = calculateDistance(
-              location.lat,
-              location.lon,
+              currentLocation.lat,
+              currentLocation.lon,
               prevLocation.lat,
               prevLocation.lon
             );
-            return distance <= 0.1; // 100m threshold
+            return distance <= 0.05; // 50m threshold
           });
           
-          if (hasDuplicateWithin100m) {
+          if (hasDuplicateWithin50m) {
             duplicateCategories.push(categoryId);
           }
         }
@@ -303,8 +393,8 @@ function App() {
         mode: mode,
         userId: userId, // Add user ID to track submissions
         location: {
-          lat: location.lat,
-          lon: location.lon
+          lat: currentLocation.lat,
+          lon: currentLocation.lon
         },
         address: sanitizedAddress,
         selectedTiles: selectedTiles,

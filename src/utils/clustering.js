@@ -18,9 +18,9 @@ export const calculateDistance = (lat1, lon1, lat2, lon2) => {
 
 /**
  * Cluster nearby locations based on proximity threshold (in km)
- * Groups locations that are within the threshold distance (default: 100m)
+ * Groups locations that are within the threshold distance (default: 50m)
  */
-export const clusterLocations = (submissions, thresholdKm = 0.1) => {
+export const clusterLocations = (submissions, thresholdKm = 0.05) => {
   if (!submissions || submissions.length === 0) return [];
 
   const clusters = [];

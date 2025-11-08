@@ -225,7 +225,7 @@ const MapSection = ({ location, address, isLoading, onRefresh }) => {
   // Cluster submissions when data changes
   useEffect(() => {
     if (submissions.length > 0) {
-      const clustered = clusterLocations(submissions, 0.1); // 100m threshold
+      const clustered = clusterLocations(submissions, 0.05); // 50m threshold
       setClusters(clustered);
     } else {
       setClusters([]);
