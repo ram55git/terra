@@ -103,6 +103,7 @@ const MapSection = ({ location, address, isLoading, onRefresh }) => {
   const [firebaseBlocked, setFirebaseBlocked] = useState(false);
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [categoryTab, setCategoryTab] = useState('complaints'); // 'complaints' or 'compliments'
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentBounds, setCurrentBounds] = useState(null);
   const [expandedFilter, setExpandedFilter] = useState('all'); // 'all', 'top10complaints', 'top10compliments'
@@ -236,8 +237,16 @@ const MapSection = ({ location, address, isLoading, onRefresh }) => {
   const getFilteredClusters = () => {
     if (expandedFilter === 'all') return clusters;
     
-    // Sort clusters by complaint or compliment count
-    const sorted = [...clusters].sort((a, b) => {
+    // Filter and sort clusters by complaint or compliment count
+    const filtered = clusters.filter(cluster => {
+      if (expandedFilter === 'top10complaints') {
+        return cluster.modes.Complaint > 0; // Only include clusters with complaints
+      } else {
+        return cluster.modes.Compliment > 0; // Only include clusters with compliments
+      }
+    });
+    
+    const sorted = filtered.sort((a, b) => {
       if (expandedFilter === 'top10complaints') {
         return b.modes.Complaint - a.modes.Complaint;
       } else {
@@ -706,44 +715,86 @@ const MapSection = ({ location, address, isLoading, onRefresh }) => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <h3 className="font-semibold text-sm text-gray-800 mb-2">Category-wise Counters:</h3>
-                {Object.keys(CATEGORIES).map((tileId) => {
-                  const category = CATEGORIES[tileId];
-                  const categoryCounts = selectedCluster.categories[category.categoryId] || { complaint: 0, compliment: 0 };
-                  const total = categoryCounts.complaint + categoryCounts.compliment;
-                  
-                  if (total === 0) return null;
+              {/* Tabs */}
+              <div className="mb-3 flex gap-2 border-b">
+                <button
+                  onClick={() => setCategoryTab('complaints')}
+                  className={`px-4 py-2 font-semibold text-sm transition-colors ${
+                    categoryTab === 'complaints'
+                      ? 'text-red-600 border-b-2 border-red-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Complaints ({selectedCluster.modes.Complaint})
+                </button>
+                <button
+                  onClick={() => setCategoryTab('compliments')}
+                  className={`px-4 py-2 font-semibold text-sm transition-colors ${
+                    categoryTab === 'compliments'
+                      ? 'text-green-600 border-b-2 border-green-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Compliments ({selectedCluster.modes.Compliment})
+                </button>
+              </div>
 
-                  return (
-                    <div key={tileId} className="border border-gray-200 rounded p-2 bg-gray-50">
-                      <div className="flex justify-between items-start mb-1">
-                        <div className="flex-1">
-                          <p className="text-xs font-semibold text-gray-800 leading-tight">{category.complaint}</p>
-                          <p className="text-xs text-gray-600 leading-tight">/ {category.compliment}</p>
+              {/* Tab Content */}
+              <div className="space-y-2">
+                {categoryTab === 'complaints' && (
+                  <>
+                    <h3 className="font-semibold text-sm text-gray-800 mb-2">Complaint Categories:</h3>
+                    {Object.keys(CATEGORIES)
+                      .map((tileId) => {
+                        const category = CATEGORIES[tileId];
+                        const categoryCounts = selectedCluster.categories[category.categoryId] || { complaint: 0, compliment: 0 };
+                        return { tileId, category, count: categoryCounts.complaint };
+                      })
+                      .filter(item => item.count > 0)
+                      .sort((a, b) => b.count - a.count) // Sort descending by count
+                      .map(({ tileId, category, count }) => (
+                        <div key={tileId} className="border border-red-200 rounded p-2 bg-red-50">
+                          <div className="flex justify-between items-center">
+                            <p className="text-xs font-semibold text-gray-800 leading-tight flex-1">{category.complaint}</p>
+                            <div className="text-right ml-2">
+                              <p className="text-base font-bold text-red-600">{count}</p>
+                              <p className="text-[10px] text-red-500">Report{count > 1 ? 's' : ''}</p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-right ml-2">
-                          <p className="text-base font-bold text-gray-800">{total}</p>
-                          <p className="text-[10px] text-gray-500">Total</p>
+                      ))}
+                    {selectedCluster.modes.Complaint === 0 && (
+                      <p className="text-gray-500 text-xs">No complaints in this cluster</p>
+                    )}
+                  </>
+                )}
+                
+                {categoryTab === 'compliments' && (
+                  <>
+                    <h3 className="font-semibold text-sm text-gray-800 mb-2">Compliment Categories:</h3>
+                    {Object.keys(CATEGORIES)
+                      .map((tileId) => {
+                        const category = CATEGORIES[tileId];
+                        const categoryCounts = selectedCluster.categories[category.categoryId] || { complaint: 0, compliment: 0 };
+                        return { tileId, category, count: categoryCounts.compliment };
+                      })
+                      .filter(item => item.count > 0)
+                      .sort((a, b) => b.count - a.count) // Sort descending by count
+                      .map(({ tileId, category, count }) => (
+                        <div key={tileId} className="border border-green-200 rounded p-2 bg-green-50">
+                          <div className="flex justify-between items-center">
+                            <p className="text-xs font-semibold text-gray-800 leading-tight flex-1">{category.compliment}</p>
+                            <div className="text-right ml-2">
+                              <p className="text-base font-bold text-green-600">{count}</p>
+                              <p className="text-[10px] text-green-500">Report{count > 1 ? 's' : ''}</p>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex gap-3 text-xs mt-1">
-                        {categoryCounts.complaint > 0 && (
-                          <span className="text-red-600">
-                            <span className="font-semibold">C:</span> {categoryCounts.complaint}
-                          </span>
-                        )}
-                        {categoryCounts.compliment > 0 && (
-                          <span className="text-green-600">
-                            <span className="font-semibold">P:</span> {categoryCounts.compliment}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                {Object.keys(selectedCluster.categories).length === 0 && (
-                  <p className="text-gray-500 text-xs">No category data available</p>
+                      ))}
+                    {selectedCluster.modes.Compliment === 0 && (
+                      <p className="text-gray-500 text-xs">No compliments in this cluster</p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
