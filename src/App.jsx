@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db, ensureAuth } from './firebase/config';
 import { getUserId } from './utils/userId';
 import { getCategoryId, CATEGORIES } from './utils/categories';
 import { calculateDistance } from './utils/clustering';
+import { encodeGeohash } from './utils/geohash';
 import { isValidLatitude, isValidLongitude, sanitizeString, validateSelectedTiles } from './utils/validation';
 import TileGrid from './components/TileGrid';
 import MapSection from './components/MapSection';
@@ -320,8 +321,15 @@ function App() {
       
       // Check for existing submissions from this user for any of the selected categories
       // Only block if same category AND within 50m from current location
+      // OPTIMIZATION: Only fetch submissions from last 90 days
       const submissionsRef = collection(db, 'submissions');
-      const q = query(submissionsRef, where('userId', '==', userId));
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      const q = query(
+        submissionsRef, 
+        where('userId', '==', userId),
+        where('timestamp', '>=', ninetyDaysAgo.toISOString()),
+        orderBy('timestamp', 'desc')
+      );
       const querySnapshot = await getDocs(q);
       
       // Store existing submissions by category with their locations
@@ -389,6 +397,9 @@ function App() {
       // Sanitize address before storing
       const sanitizedAddress = sanitizeString(address, 500);
       
+      // Generate geohash for efficient location queries
+      const geohashValue = encodeGeohash(currentLocation.lat, currentLocation.lon, 7);
+      
       const dataToStore = {
         mode: mode,
         userId: userId, // Add user ID to track submissions
@@ -396,6 +407,7 @@ function App() {
           lat: currentLocation.lat,
           lon: currentLocation.lon
         },
+        geohash: geohashValue, // Add geohash for spatial indexing
         address: sanitizedAddress,
         selectedTiles: selectedTiles,
         timestamp: new Date().toISOString()

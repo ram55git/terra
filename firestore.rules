@@ -21,7 +21,7 @@ service cloud.firestore {
     }
     
     function hasRequiredFields(data) {
-      return data.keys().hasAll(['mode', 'userId', 'location', 'address', 'selectedTiles', 'timestamp']);
+      return data.keys().hasAll(['mode', 'userId', 'location', 'geohash', 'address', 'selectedTiles', 'timestamp']);
     }
     
     function hasValidLocation(location) {
@@ -44,6 +44,9 @@ service cloud.firestore {
         && request.resource.data.userId is string
         && request.resource.data.userId.size() > 0
         && request.resource.data.userId.size() < 200
+        && request.resource.data.geohash is string
+        && request.resource.data.geohash.size() >= 1
+        && request.resource.data.geohash.size() <= 12
         && request.resource.data.address is string
         && request.resource.data.address.size() < 500
         && request.resource.data.selectedTiles is map

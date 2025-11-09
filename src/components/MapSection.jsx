@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import { Icon, divIcon } from 'leaflet';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { clusterLocations } from '../utils/clustering';
+import { getGeohashRangesForBounds, isWithinBounds } from '../utils/geohash';
 import { CATEGORIES } from '../utils/categories';
 import 'leaflet/dist/leaflet.css';
 
@@ -140,13 +141,22 @@ const MapSection = ({ location, address, isLoading, onRefresh }) => {
       const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
       const ninetyDaysAgoISO = ninetyDaysAgo.toISOString();
       
-      // Query Firestore with bounding box and time filter
-      // Note: Firestore has limitations - we can only use one range filter at a time
-      // So we'll filter by timestamp first, then filter by bounds in memory
+      // OPTIMIZATION: Use geohash for efficient spatial queries
+      const geohashRanges = getGeohashRangesForBounds(southWest, northEast);
       const submissionsRef = collection(db, 'submissions');
+      
+      // We'll query using the first geohash range
+      // In production with very large areas, you might query multiple ranges
+      const geohashRange = geohashRanges[0];
+      
       const q = query(
         submissionsRef,
-        where('timestamp', '>=', ninetyDaysAgoISO)
+        where('geohash', '>=', geohashRange.min),
+        where('geohash', '<=', geohashRange.max),
+        where('timestamp', '>=', ninetyDaysAgoISO),
+        orderBy('geohash'),
+        orderBy('timestamp', 'desc'),
+        limit(5000) // Limit to prevent excessive data transfer
       );
       
       const querySnapshot = await getDocs(q);
@@ -155,19 +165,9 @@ const MapSection = ({ location, address, isLoading, onRefresh }) => {
       querySnapshot.forEach((doc) => {
         const docData = doc.data();
         
-        // Filter by viewport bounds in memory
-        if (docData.location) {
-          const lat = docData.location.lat;
-          const lon = docData.location.lon;
-          
-          if (
-            lat >= southWest.lat &&
-            lat <= northEast.lat &&
-            lon >= southWest.lng &&
-            lon <= northEast.lng
-          ) {
-            data.push({ id: doc.id, ...docData });
-          }
+        // Additional client-side filter for precision (geohash gives approximate bounds)
+        if (docData.location && isWithinBounds(docData.location, southWest, northEast)) {
+          data.push({ id: doc.id, ...docData });
         }
       });
       
