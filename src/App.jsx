@@ -280,22 +280,7 @@ function App() {
   };
 
   const handleSubmit = async () => {
-    // Refresh location coordinates before proceeding
-    let currentLocation;
-    try {
-      currentLocation = await getFreshLocation();
-    } catch (error) {
-      alert(error.message + '\n\n' + t('errors.retryLocation'));
-      return;
-    }
-
-    // Validate location coordinates
-    if (!isValidLatitude(currentLocation.lat) || !isValidLongitude(currentLocation.lon)) {
-      alert('Invalid location coordinates. Please try again.');
-      return;
-    }
-
-    // Validate selected tiles
+    // Validate selected tiles first
     if (!validateSelectedTiles(selectedTiles)) {
       alert(t('errors.selectAtLeastOne'));
       return;
@@ -312,6 +297,23 @@ function App() {
     }
 
     setIsSubmitting(true);
+
+    // Refresh location coordinates before proceeding
+    let currentLocation;
+    try {
+      currentLocation = await getFreshLocation();
+    } catch (error) {
+      setIsSubmitting(false);
+      alert(error.message + '\n\n' + t('errors.retryLocation'));
+      return;
+    }
+
+    // Validate location coordinates
+    if (!isValidLatitude(currentLocation.lat) || !isValidLongitude(currentLocation.lon)) {
+      setIsSubmitting(false);
+      alert('Invalid location coordinates. Please try again.');
+      return;
+    }
 
     try {
       // Ensure user is authenticated (anonymous) before submitting
@@ -332,19 +334,21 @@ function App() {
       );
       const querySnapshot = await getDocs(q);
       
-      // Store existing submissions by category with their locations
-      // Map: categoryId -> array of locations
-      const existingByCategoryLocation = {};
+      // Store existing submissions by category + mode with their locations
+      // Map: categoryId_mode -> array of locations
+      const existingByCategoryModeLocation = {};
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.location && data.selectedTiles) {
+        if (data.location && data.selectedTiles && data.mode) {
           Object.keys(data.selectedTiles).forEach(tileId => {
             if (data.selectedTiles[tileId]) {
               const categoryId = getCategoryId(tileId);
-              if (!existingByCategoryLocation[categoryId]) {
-                existingByCategoryLocation[categoryId] = [];
+              // Create unique key combining category and mode
+              const key = `${categoryId}_${data.mode}`;
+              if (!existingByCategoryModeLocation[key]) {
+                existingByCategoryModeLocation[key] = [];
               }
-              existingByCategoryLocation[categoryId].push({
+              existingByCategoryModeLocation[key].push({
                 lat: data.location.lat,
                 lon: data.location.lon
               });
@@ -354,11 +358,14 @@ function App() {
       });
 
       // Find categories that user has already submitted within 50m of current location
+      // FOR THE SAME MODE (complaint vs compliment are separate)
       const duplicateCategories = [];
       selectedCategoryIds.forEach(categoryId => {
-        const existingLocations = existingByCategoryLocation[categoryId];
+        // Check for duplicates with same mode only
+        const key = `${categoryId}_${mode}`;
+        const existingLocations = existingByCategoryModeLocation[key];
         if (existingLocations) {
-          // Check if any previous submission for this category is within 50m
+          // Check if any previous submission for this category+mode is within 50m
           const hasDuplicateWithin50m = existingLocations.some(prevLocation => {
             const distance = calculateDistance(
               currentLocation.lat,
